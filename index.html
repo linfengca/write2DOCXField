@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TXT 到 DOCX 域占位符写入</title>
+  <style>
+    :root {
+      --bg: #f5f2ea;
+      --ink: #1f1b16;
+      --muted: #6f6358;
+      --card: #ffffff;
+      --accent: #2e6f72;
+      --accent-2: #b77b45;
+      --border: #e1d8cc;
+      --shadow: 0 16px 40px rgba(31, 27, 22, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Times New Roman", "Noto Serif SC", "Songti SC", serif;
+      color: var(--ink);
+      background: radial-gradient(circle at 10% 10%, #fef9f2 0%, #f5f2ea 35%, #efe6d8 100%);
+    }
+    header {
+      padding: 28px 24px 12px;
+      text-align: center;
+    }
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      letter-spacing: 1px;
+    }
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 16px 24px 48px;
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    label {
+      font-size: 13px;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 6px;
+    }
+    input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      background: #fbfaf7;
+    }
+    button {
+      appearance: none;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      background: linear-gradient(120deg, var(--accent), #255b5e);
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(46, 111, 114, 0.22);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+    .list {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      min-height: 120px;
+      background: #fcfbf8;
+    }
+    .list ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #f2e6d6;
+      color: var(--accent-2);
+      font-size: 12px;
+    }
+    .download {
+      margin-top: 10px;
+      display: none;
+    }
+    .download a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>TXT → DOCX 域占位符写入</h1>
+    <p>每行一条数据，填充文档中 5 个域占位符，并导出为 test_update.docx</p>
+  </header>
+  <main>
+    <section class="panel grid">
+      <div>
+        <label for="txtFile">TXT 数据文件（每行一条）</label>
+        <input id="txtFile" type="file" accept=".txt" />
+      </div>
+      <div>
+        <label for="docxFile">DOCX 模板（包含 5 个占位符）</label>
+        <input id="docxFile" type="file" accept=".docx" />
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:12px;">
+        <button id="processBtn" type="button" disabled>读取并生成</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="grid">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <strong>读取到的数据</strong>
+            <span class="badge" id="dataCount">0 条</span>
+          </div>
+          <div class="list" id="dataList">
+            <ul></ul>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <strong>识别到的域占位符</strong>
+            <span class="badge" id="placeholderCount">0 个</span>
+          </div>
+          <div class="list" id="placeholderList">
+            <ul></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <strong>写入映射（前 5 条数据）</strong>
+        <span class="badge" id="mappingCount">0 项</span>
+      </div>
+      <table id="mappingTable">
+        <thead>
+          <tr>
+            <th>占位符</th>
+            <th>写入数据</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="status" id="statusText">请先选择 TXT 和 DOCX 文件。</div>
+      <div class="download" id="downloadBox">
+        <a id="downloadLink" href="#" download="test_update.docx">下载 test_update.docx</a>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/pizzip@3.1.7/dist/pizzip.min.js"></script>
+  <script>
+    const txtInput = document.getElementById("txtFile");
+    const docxInput = document.getElementById("docxFile");
+    const processBtn = document.getElementById("processBtn");
+    const dataList = document.querySelector("#dataList ul");
+    const placeholderList = document.querySelector("#placeholderList ul");
+    const mappingTable = document.querySelector("#mappingTable tbody");
+    const statusText = document.getElementById("statusText");
+    const dataCount = document.getElementById("dataCount");
+    const placeholderCount = document.getElementById("placeholderCount");
+    const mappingCount = document.getElementById("mappingCount");
+    const downloadBox = document.getElementById("downloadBox");
+    const downloadLink = document.getElementById("downloadLink");
+
+    let txtLines = [];
+    let placeholders = [];
+    let docxArrayBuffer = null;
+
+    function updateButtonState() {
+      processBtn.disabled = !(txtInput.files.length && docxInput.files.length);
+    }
+
+    function renderList(listEl, items) {
+      listEl.innerHTML = "";
+      if (!items.length) {
+        listEl.innerHTML = "<li>暂无</li>";
+        return;
+      }
+      items.forEach((item, idx) => {
+        const li = document.createElement("li");
+        li.textContent = `${idx + 1}. ${item}`;
+        listEl.appendChild(li);
+      });
+    }
+
+    function renderMapping(mapping) {
+      mappingTable.innerHTML = "";
+      const entries = Object.entries(mapping);
+      mappingCount.textContent = `${entries.length} 项`;
+      if (!entries.length) {
+        const row = document.createElement("tr");
+        row.innerHTML = "<td colspan='2'>暂无映射</td>";
+        mappingTable.appendChild(row);
+        return;
+      }
+      entries.forEach(([key, value]) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${key}</td><td>${value}</td>`;
+        mappingTable.appendChild(row);
+      });
+    }
+
+    function normalizeLines(text) {
+      const lines = text.replace(/\r/g, "").split("\n");
+      if (lines.length && lines[lines.length - 1] === "") {
+        lines.pop();
+      }
+      return lines;
+    }
+
+    const WORD_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+
+    function parseXml(xmlText) {
+      const parser = new DOMParser();
+      return parser.parseFromString(xmlText, "application/xml");
+    }
+
+    function normalizeFieldName(raw) {
+      const clean = raw.replace(/\s+/g, " ").trim();
+      if (/MERGEFIELD/i.test(clean)) {
+        const parts = clean.split(/\s+/);
+        const idx = parts.findIndex((p) => /MERGEFIELD/i.test(p));
+        return parts[idx + 1] || clean;
+      }
+      return clean.replace(/\s+/g, "");
+    }
+
+    function getFieldType(run) {
+      const fldChar = run.getElementsByTagNameNS(WORD_NS, "fldChar")[0];
+      if (!fldChar) return null;
+      return (
+        fldChar.getAttribute("w:fldCharType") ||
+        fldChar.getAttributeNS(WORD_NS, "fldCharType") ||
+        fldChar.getAttribute("fldCharType")
+      );
+    }
+
+    function extractFieldsFromXml(xmlDoc) {
+      const runs = Array.from(xmlDoc.getElementsByTagNameNS(WORD_NS, "r"));
+      const fields = [];
+      let collecting = false;
+      let fieldName = "";
+      let fieldRuns = [];
+      let separateRun = null;
+
+      runs.forEach((run) => {
+        const type = getFieldType(run);
+        const instr = run.getElementsByTagNameNS(WORD_NS, "instrText")[0];
+
+        if (type === "begin") {
+          collecting = true;
+          fieldName = "";
+          fieldRuns = [run];
+          separateRun = null;
+          return;
+        }
+
+        if (!collecting) return;
+
+        if (instr && instr.textContent) {
+          fieldName += instr.textContent;
+        }
+
+        fieldRuns.push(run);
+
+        if (type === "separate") {
+          separateRun = run;
+        }
+
+        if (type === "end") {
+          const name = normalizeFieldName(fieldName);
+          if (name) {
+            fields.push({
+              name,
+              runs: fieldRuns,
+              separateRun,
+              endRun: run
+            });
+          }
+          collecting = false;
+        }
+      });
+
+      return fields;
+    }
+
+    function collectPlaceholders(zip) {
+      const files = zip.file(/word\/.*\.xml/);
+      const seen = new Set();
+      const ordered = [];
+      files.forEach((file) => {
+        const xml = file.asText();
+        const xmlDoc = parseXml(xml);
+        const fields = extractFieldsFromXml(xmlDoc);
+        fields.forEach((field) => {
+          if (!seen.has(field.name)) {
+            seen.add(field.name);
+            ordered.push(field.name);
+          }
+        });
+      });
+      return ordered;
+    }
+
+    function setFieldValue(xmlDoc, field, value) {
+      if (!field.separateRun || !field.endRun) return;
+      const parent = field.endRun.parentNode;
+      let node = field.separateRun.nextSibling;
+      while (node && node !== field.endRun) {
+        const next = node.nextSibling;
+        parent.removeChild(node);
+        node = next;
+      }
+      const run = xmlDoc.createElementNS(WORD_NS, "w:r");
+      const text = xmlDoc.createElementNS(WORD_NS, "w:t");
+      if (/^\s|\s$/.test(value)) {
+        text.setAttributeNS(
+          "http://www.w3.org/XML/1998/namespace",
+          "xml:space",
+          "preserve"
+        );
+      }
+      text.textContent = value;
+      run.appendChild(text);
+      parent.insertBefore(run, field.endRun);
+    }
+
+    function updateDocxFields(zip, mapping) {
+      const files = zip.file(/word\/.*\.xml/);
+      files.forEach((file) => {
+        const xml = file.asText();
+        const xmlDoc = parseXml(xml);
+        const fields = extractFieldsFromXml(xmlDoc);
+        fields.forEach((field) => {
+          if (Object.prototype.hasOwnProperty.call(mapping, field.name)) {
+            setFieldValue(xmlDoc, field, mapping[field.name] ?? "");
+          }
+        });
+        const serializer = new XMLSerializer();
+        const newXml = serializer.serializeToString(xmlDoc);
+        zip.file(file.name, newXml);
+      });
+    }
+
+    txtInput.addEventListener("change", async () => {
+      const file = txtInput.files[0];
+      if (!file) {
+        txtLines = [];
+        renderList(dataList, txtLines);
+        dataCount.textContent = "0 条";
+        updateButtonState();
+        return;
+      }
+      const text = await file.text();
+      txtLines = normalizeLines(text);
+      renderList(dataList, txtLines);
+      dataCount.textContent = `${txtLines.length} 条`;
+      updateButtonState();
+    });
+
+    docxInput.addEventListener("change", async () => {
+      const file = docxInput.files[0];
+      if (!file) {
+        placeholders = [];
+        docxArrayBuffer = null;
+        renderList(placeholderList, placeholders);
+        placeholderCount.textContent = "0 个";
+        updateButtonState();
+        return;
+      }
+      docxArrayBuffer = await file.arrayBuffer();
+      const zip = new window.PizZip(docxArrayBuffer);
+      placeholders = collectPlaceholders(zip);
+      renderList(placeholderList, placeholders);
+      placeholderCount.textContent = `${placeholders.length} 个`;
+      updateButtonState();
+    });
+
+    processBtn.addEventListener("click", () => {
+      downloadBox.style.display = "none";
+      if (!docxArrayBuffer) {
+        statusText.textContent = "未读取到 DOCX 文件。";
+        return;
+      }
+      if (placeholders.length === 0) {
+        statusText.textContent = "未识别到域占位符，请确认 DOCX 使用 Word 域（field code）。";
+        renderMapping({});
+        return;
+      }
+
+      const limitedPlaceholders = placeholders.slice(0, 5);
+      const mapping = {};
+      limitedPlaceholders.forEach((key, idx) => {
+        mapping[key] = txtLines[idx] ?? "";
+      });
+      renderMapping(mapping);
+
+      try {
+        const zip = new window.PizZip(docxArrayBuffer);
+        updateDocxFields(zip, mapping);
+        const out = zip.generate({
+          type: "blob",
+          mimeType:
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        });
+        const url = URL.createObjectURL(out);
+        downloadLink.href = url;
+        downloadBox.style.display = "block";
+
+        const extraLine =
+          placeholders.length !== 5
+            ? `（检测到 ${placeholders.length} 个，占位符取前 5 个）`
+            : "";
+        statusText.textContent = `已写入并生成 test_update.docx ${extraLine}`;
+      } catch (err) {
+        statusText.textContent = `生成失败：${err.message || err}`;
+      }
+    });
+  </script>
+</body>
+</html>
